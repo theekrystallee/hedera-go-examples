@@ -1,38 +1,3 @@
-// package main
-
-// import (
-// 	"fmt"
-// 	"os"
-
-// 	"github.com/hashgraph/hedera-sdk-go/v2"
-// 	"github.com/joho/godotenv"
-// )
-
-// func main() {
-
-// 	//Loads the .env file and throws an error if it cannot load the variables from that file correctly
-// 	err := godotenv.Load(".env")
-// 	if err != nil {
-// 		panic(fmt.Errorf("Unable to load environment variables from .env file. Error:\n%v\n", err))
-// 	}
-
-// 	//Grab your testnet account ID and private key from the .env file
-// 	myAccountId, err := hedera.AccountIDFromString(os.Getenv("MY_ACCOUNT_ID"))
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	myPrivateKey, err := hedera.PrivateKeyFromString(os.Getenv("MY_PRIVATE_KEY"))
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	//Print your testnet account ID and private key to the console to make sure there was no error
-// 	fmt.Printf("\nThe account ID is = %v\n", myAccountId)
-// 	fmt.Printf("\nThe private key is = %v\n", myPrivateKey)
-// 	fmt.Printf("\n")
-// }
-
 package main
 
 import (
@@ -61,11 +26,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	//Print your testnet account ID and private key to the console to make sure there was no error
-	// fmt.Printf("\nThe account ID is = %v\n", myAccountId)
-	// fmt.Printf("The private key is = %v", myPrivateKey)
-	// fmt.Printf("\n")
 
 	//Create your testnet client
 	client := hedera.ClientForTestnet()
@@ -114,5 +74,55 @@ func main() {
 
 	//Print the balance of tinybars
 	fmt.Println("New account balance for the new account is", accountBalance.Hbars.AsTinybar())
+
+	//Transfer hbar from your testnet account to the new account
+	transaction := hedera.NewTransferTransaction().
+		AddHbarTransfer(myAccountId, hedera.HbarFrom(-1000, hedera.HbarUnits.Tinybar)).
+		AddHbarTransfer(newAccountId, hedera.HbarFrom(1000, hedera.HbarUnits.Tinybar))
+
+	// Submit the transaction to a Hedera network
+	txResponse, err := transaction.Execute(client)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Request the receipt of the transaction
+	transferReceipt, err := txResponse.GetReceipt(client)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Get the transaction consensus status
+	transactionStatus := transferReceipt.Status
+
+	fmt.Printf("\nThe transaction consensus status is %v\n\n", transactionStatus)
+
+	//Create the query that you want to submit
+	balanceQuery := hedera.NewAccountBalanceQuery().
+		SetAccountID(newAccountId)
+
+	//Get the cost of the query
+	cost, err := balanceQuery.GetCost(client)
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("The account balance query cost is:", cost.String())
+
+	//Check the new account's balance
+	newAccountBalancequery := hedera.NewAccountBalanceQuery().
+		SetAccountID(newAccountId)
+
+	//Sign with client operator private key and submit the query to a Hedera network
+	newAccountBalance, err := newAccountBalancequery.Execute(client)
+	if err != nil {
+		panic(err)
+	}
+
+	//Print the balance of tinybars
+	fmt.Println("The HBAR balance for this account is", newAccountBalance.Hbars.AsTinybar())
 	fmt.Printf("\n")
 }
